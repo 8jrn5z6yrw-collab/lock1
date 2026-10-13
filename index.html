@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Locker Lock Practice</title>
+<style>
+:root{--bg:#eef4ff;--card:#fff;--ink:#1d2433;--muted:#5b6478;--blue:#2f6fed;--green:#1fa45a;--red:#e0483e;--yellow:#ffcc33;--r:18px}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+header{background:var(--blue);color:#fff;padding:28px 20px;text-align:center}
+header h1{margin:0;font-size:clamp(1.6rem,4vw,2.4rem)}
+header p{margin:6px 0 0;opacity:.9;font-size:1.1rem}
+main{max-width:1050px;margin:0 auto;padding:20px}
+h2{margin-top:0}
+.card{background:var(--card);border-radius:var(--r);padding:20px;box-shadow:0 4px 16px rgba(30,50,100,.08);margin-bottom:20px}
+.how{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.how div{background:#f5f8ff;border-radius:14px;padding:14px}
+.how b.n{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--blue);color:#fff;margin-right:6px}
+.play{display:grid;grid-template-columns:minmax(260px,380px) 1fr;gap:28px;align-items:start}
+@media(max-width:760px){.play{grid-template-columns:1fr}}
+#lock{width:100%;max-width:360px;display:block;margin:auto;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+#lock.dragging{cursor:grabbing}
+#shackle{transition:transform .5s cubic-bezier(.3,1.6,.5,1)}
+#lock.open #shackle{transform:translateY(-38px)}
+#lock.shake{animation:shake .4s}
+@keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+.readout{text-align:center;font-size:1.1rem;margin:8px 0}
+.readout strong{font-size:2.2rem;color:var(--blue);display:inline-block;min-width:50px}
+.controls{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px}
+button{font:inherit;font-weight:700;border:none;border-radius:12px;padding:12px 16px;cursor:pointer;background:#e3eaf8;color:var(--ink);touch-action:manipulation;user-select:none;-webkit-user-select:none}
+button:hover{filter:brightness(.95)}
+button.small{font-size:.9rem;padding:9px 12px;background:#eef2fa}
+button.go{background:var(--green);color:#fff;font-size:1.15rem;padding:14px 26px}
+button.primary{background:var(--blue);color:#fff}
+button:disabled{opacity:.45;cursor:not-allowed}
+.combo{display:flex;gap:10px;margin:6px 0 16px;flex-wrap:wrap}
+.combo span{min-width:70px;text-align:center;font-size:2rem;font-weight:800;padding:6px 10px;border-radius:12px;background:#f0f3fa;border:3px solid transparent}
+.combo span.now{border-color:var(--yellow);background:#fff8dd}
+.combo span.done{background:#dff5e8;color:var(--green)}
+.steps{list-style:none;padding:0;margin:0}
+.steps li{padding:10px 12px;border-radius:12px;margin-bottom:8px;background:#f5f7fb;color:var(--muted)}
+.steps li.now{background:#fff8dd;color:var(--ink);outline:2px solid var(--yellow)}
+.steps li.done{background:#dff5e8;color:var(--ink)}
+.steps li.done::before{content:"✓ ";color:var(--green);font-weight:800}
+#hint{font-size:1.15rem;font-weight:600;padding:14px;border-radius:14px;background:#eaf1ff;margin:14px 0;min-height:60px}
+#hint.good{background:#dff5e8}
+#hint.bad{background:#fde6e4}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.toggle{display:flex;gap:6px;align-items:center;font-weight:600;margin-right:12px}
+.toggle input{width:20px;height:20px}
+input[type=number]{width:72px;font:inherit;padding:8px;border-radius:10px;border:2px solid #cdd6ea}
+.stats{color:var(--muted);font-size:.95rem}
+details{margin-top:14px;background:#f5f8ff;border-radius:14px;padding:12px}
+summary{font-weight:700;cursor:pointer}
+.tips li{margin-bottom:8px}
+footer{text-align:center;color:var(--muted);padding:10px 20px 30px;font-size:.9rem}
+</style>
+</head>
+<body>
+<header>
+  <h1>🔒 Locker Lock Practice</h1>
+  <p>Learn to open a combination lock before the first day of school!</p>
+</header>
+
+<main>
+  <section class="card">
+    <h2>How it works</h2>
+    <div class="how">
+      <div><b class="n">1</b><b>Turn RIGHT ↻</b> (clockwise) 3 full times, then stop on the <b>first</b> number.</div>
+      <div><b class="n">2</b><b>Turn LEFT ↺</b> (counter-clockwise). Go <b>past</b> the second number once, then stop on it the <b>second</b> time.</div>
+      <div><b class="n">3</b><b>Turn RIGHT ↻</b> straight to the <b>third</b> number. Don't go past it!</div>
+      <div><b class="n">4</b><b>Pull</b> the lock open! 🎉 Made a mistake? Just start over at step 1.</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="play">
+      <div>
+        <svg id="lock" viewBox="0 -40 300 440" aria-label="Combination lock. Drag the dial in a circle to turn it.">
+          <defs>
+            <linearGradient id="metal" x1="0" x2="1">
+              <stop offset="0" stop-color="#8f98a8"/><stop offset=".5" stop-color="#eef1f6"/><stop offset="1" stop-color="#848d9e"/>
+            </linearGradient>
+            <radialGradient id="face" cx=".4" cy=".35">
+              <stop offset="0" stop-color="#3a3f4b"/><stop offset="1" stop-color="#14171e"/>
+            </radialGradient>
+          </defs>
+          <path id="shackle" d="M78 160 V95 A72 72 0 0 1 222 95 V160" fill="none" stroke="url(#metal)" stroke-width="26" stroke-linecap="round"/>
+          <rect x="20" y="135" width="260" height="260" rx="46" fill="url(#metal)" stroke="#6b7385" stroke-width="3"/>
+          <g id="dial">
+            <circle cx="150" cy="265" r="110" fill="url(#face)" stroke="#0b0d12" stroke-width="4"/>
+            <g id="ticks"></g>
+            <circle cx="150" cy="265" r="42" fill="#2a2e38" stroke="#4a5060" stroke-width="3"/>
+            <text x="150" y="265" text-anchor="middle" dominant-baseline="central" fill="#9aa3b2" font-size="11" font-weight="700" letter-spacing="1">PRACTICE</text>
+          </g>
+          <polygon points="139,141 161,141 150,161" fill="#e0483e" stroke="#fff" stroke-width="2"/>
+        </svg>
+        <div class="readout">Number at the top: <strong id="num">0</strong></div>
+        <div class="controls">
+          <button id="left">↺ Turn Left</button>
+          <button id="right">Turn Right ↻</button>
+        </div>
+        <div class="controls">
+          <button id="fullLeft" class="small">↺ Full turn left</button>
+          <button id="fullRight" class="small">Full turn right ↻</button>
+        </div>
+        <div class="controls"><button id="open" class="go">🔓 Pull to open</button></div>
+        <p class="stats" style="text-align:center">Drag the dial in a circle, scroll your mouse wheel over it, hold the buttons, or use the ← → keys (hold Shift to go faster).</p>
+      </div>
+
+      <div>
+        <h2>Your combination</h2>
+        <div class="combo"><span id="c0"></span><span id="c1"></span><span id="c2"></span></div>
+        <ul id="steps" class="steps">
+          <li>Turn RIGHT ↻ 3 times, stop on <b class="n0"></b></li>
+          <li>Turn LEFT ↺ past <b class="n1"></b> once, stop on it the 2nd time</li>
+          <li>Turn RIGHT ↻ straight to <b class="n2"></b></li>
+          <li>Pull the lock open!</li>
+        </ul>
+        <div id="hint" aria-live="polite"></div>
+        <div class="row">
+          <button id="demo" class="primary">▶ Watch demo</button>
+          <button id="new">🔀 New combo</button>
+          <button id="reset">↩ Start over</button>
+        </div>
+        <div class="row" style="margin-top:14px">
+          <label class="toggle"><input type="checkbox" id="hints" checked> Show hints</label>
+          <label class="toggle"><input type="checkbox" id="sound" checked> Click sounds</label>
+        </div>
+        <p class="stats">Opens: <b id="wins">0</b> · Time: <b id="time">0.0s</b> · Best: <b id="best">—</b></p>
+        <details>
+          <summary>Practice with your own combination</summary>
+          <p class="stats">Type your real locker combination (0–39). It stays on your device and is never saved or sent anywhere.</p>
+          <div class="row">
+            <input type="number" id="in0" min="0" max="39" placeholder="1st">
+            <input type="number" id="in1" min="0" max="39" placeholder="2nd">
+            <input type="number" id="in2" min="0" max="39" placeholder="3rd">
+            <button id="use" class="primary">Use it</button>
+          </div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Tips for the first day</h2>
+    <ul class="tips">
+      <li><b>Go slow on the last two numbers.</b> Speed comes later. Being careful is what matters.</li>
+      <li><b>Line the number up with the mark at the top.</b> Being off by one usually still works, but more than that won't.</li>
+      <li><b>Messed up? Don't worry.</b> Spin the dial right a few times and start again. Everyone does this!</li>
+      <li><b>Pull firmly.</b> Some lockers also need you to lift the handle or latch after the last number.</li>
+      <li><b>Keep your combination private</b>, and keep a copy somewhere safe at home in case you forget it.</li>
+      <li>Try <b>Challenge mode</b> (turn off "Show hints") until you can open it without help every time.</li>
+    </ul>
+  </section>
+</main>
+<footer>Made to help students get ready for junior high. Good luck this year! 🎒</footer>
+
+<script>
+const N=40, CX=150, CY=265, ns='http://www.w3.org/2000/svg';
+const $=id=>document.getElementById(id);
+const svg=$('lock'), dial=$('dial');
+const mod=n=>((n%N)+N)%N;
+const near=(a,b)=>Math.min(mod(a-b),mod(b-a))<=1;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+// Draw tick marks and numbers on the dial
+(function(){
+  const g=$('ticks');
+  for(let i=0;i<N;i++){
+    const a=i*9*Math.PI/180, s=Math.sin(a), c=Math.cos(a), big=i%5===0;
+    const l=document.createElementNS(ns,'line'), r1=106, r2=big?90:98;
+    l.setAttribute('x1',CX+r1*s); l.setAttribute('y1',CY-r1*c);
+    l.setAttribute('x2',CX+r2*s); l.setAttribute('y2',CY-r2*c);
+    l.setAttribute('stroke','#fff'); l.setAttribute('stroke-width',big?3:1.5);
+    g.appendChild(l);
+    if(big){
+      const t=document.createElementNS(ns,'text'), x=CX+74*s, y=CY-74*c;
+      t.setAttribute('x',x); t.setAttribute('y',y);
+      t.setAttribute('transform',`rotate(${i*9} ${x} ${y})`);
+      t.setAttribute('text-anchor','middle'); t.setAttribute('dominant-baseline','central');
+      t.setAttribute('fill','#fff'); t.setAttribute('font-size','18'); t.setAttribute('font-weight','700');
+      t.textContent=i; g.appendChild(t);
+    }
+  }
+})();
+
+let combo=[], rot=0, irot=0, segs=[], isOpen=false, demo=false, busy=false, hints=true, note=null;
+let wins=0, best=null, t0=null, tiv=null, ac=null, soundOn=true, dragging=false;
+try{ const b=parseFloat(localStorage.getItem('lockBest')); if(b) best=b; }catch(e){}
+
+const pos=()=>mod(-irot); // number under the red marker
+function setDial(r){ dial.setAttribute('transform',`rotate(${r*9} ${CX} ${CY})`); }
+function randomCombo(){
+  const r=()=>Math.floor(Math.random()*N); let a,b,c;
+  do{a=r();b=r();c=r();}while(mod(b-a)<4||mod(b-c)<4);
+  return [a,b,c];
+}
+
+function tick(){
+  if(!soundOn) return;
+  try{
+    ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(), g=ac.createGain();
+    o.type='square'; o.frequency.value=1800;
+    g.gain.setValueAtTime(0.04,ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+0.03);
+    o.connect(g).connect(ac.destination); o.start(); o.stop(ac.currentTime+0.03);
+  }catch(e){}
+}
+
+// One click of the dial: +1 = right (clockwise), -1 = left
+function step(dir){
+  if(isOpen) return;
+  irot+=dir;
+  const d=dir>0?'R':'L', last=segs[segs.length-1];
+  if(last&&last.dir===d) last.t++; else segs.push({dir:d,t:1});
+  segs[segs.length-1].end=pos();
+  if(segs.length>12) segs.shift();
+  note=null; tick(); startTimer(); render();
+}
+
+// Figure out which step the student is on (allows being off by 1, like a real lock)
+function analyze(){
+  const s=segs, L=s.length, last=s[L-1], [c1,c2,c3]=combo;
+  const ok1=g=>g&&g.dir==='R'&&g.t>=2*N-1&&near(g.end,c1);
+  const T2=start=>N+(mod(c2-start)||N);
+  const ok2=(g,p)=>g&&p&&g.dir==='L'&&Math.abs(g.t-T2(p.end))<=1;
+  const at=n=>pos()===n?`${n} is at the top.`:`Close enough to ${n}!`;
+  if(!last) return {step:1,msg:`Start by turning the dial RIGHT ↻ (clockwise). Spin it 3 full times.`};
+
+  if(last.dir==='R'){
+    if(L>=3&&ok1(s[L-3])&&ok2(s[L-2],s[L-3])){
+      const f=mod(s[L-2].end-c3)||N, t=last.t;
+      if(t<f-1) return {step:3,msg:`Turn RIGHT ↻ straight to ${c3}. Go slowly as you get close!`};
+      if(t<=f+1) return {step:3,good:true,ready:true,msg:`${at(c3)} Now PULL the lock open!`};
+      if(t<2*N-1) return {step:3,bad:true,msg:`Oops, you went past ${c3}. No problem! Keep spinning RIGHT ↻ to start over.`};
+    }
+    if(last.t>=2*N-1&&near(last.end,c1)) return {step:1,good:true,msg:`Stop! ${at(c1)} Now turn LEFT ↺ (counter-clockwise).`};
+    if(last.t>=2*N-1) return {step:1,msg:`Great spinning! Keep turning RIGHT ↻ until ${c1} is at the top.`};
+    return {step:1,msg:`Keep turning RIGHT ↻. Full spins so far: ${Math.floor(last.t/N)}`};
+  }
+
+  if(!ok1(s[L-2])) return {step:1,bad:true,msg:`Step 1 isn't done yet. Turn RIGHT ↻ at least 3 full times, then stop on ${c1}.`};
+  const f=mod(c2-s[L-2].end)||N, T=N+f, t=last.t;
+  if(t<f-1) return {step:2,msg:`Turn LEFT ↺. You need to go past ${c2} one time…`};
+  if(t<=f+1) return {step:2,msg:`That's ${c2} the FIRST time. Keep going! Stop when it comes around again.`};
+  if(t<T-1) return {step:2,msg:`You passed ${c2} once ✓ Keep turning LEFT ↺ and stop on it the second time.`};
+  if(t<=T+1) return {step:2,good:true,msg:`Stop! ${at(c2)} (2nd time) Now turn RIGHT ↻ to ${c3}.`};
+  return {step:2,bad:true,msg:`Oops, you went past ${c2}. No problem! Start over by spinning RIGHT ↻ 3 times.`};
+}
+
+function render(){
+  setDial(dragging?rot:irot);
+  $('num').textContent=pos();
+  const a=isOpen?{step:5}:analyze(), show=hints||demo;
+  const active=isOpen?4:(a.good?a.step:a.step-1);
+  combo.forEach((v,i)=>{
+    const el=$('c'+i); el.textContent=v;
+    el.className=(show||isOpen)?(i<active?'done':i===active?'now':''):'';
+    document.querySelectorAll('.n'+i).forEach(e=>e.textContent=v);
+  });
+  document.querySelectorAll('#steps li').forEach((li,i)=>{
+    li.className=(show||isOpen)?(i<active?'done':i===active?'now':''):'';
+  });
+  const h=$('hint');
+  if(note){h.textContent=note.msg;h.className=note.cls;}
+  else if(show){h.textContent=a.msg;h.className=a.bad?'bad':a.good?'good':'';}
+  else {h.textContent='🏁 Challenge mode: no hints! Press "Pull to open" when you think you\'ve got it.';h.className='';}
+}
+
+function tryOpen(fromDemo){
+  if(isOpen) return;
+  const a=analyze();
+  if(a.ready){
+    isOpen=true; svg.classList.add('open');
+    let msg;
+    if(fromDemo){ msg='🎉 That\'s how it\'s done! Press "Start over" and try it yourself.'; }
+    else{
+      wins++; msg='🎉 It opened! Great job!';
+      if(t0){
+        const s=(performance.now()-t0)/1000;
+        clearInterval(tiv); t0=null; $('time').textContent=s.toFixed(1)+'s';
+        msg+=` Time: ${s.toFixed(1)}s.`;
+        if(!best||s<best){best=s; msg+=' New best! ⭐'; try{localStorage.setItem('lockBest',s);}catch(e){}}
+      }
+    }
+    note={msg,cls:'good'};
+  } else {
+    svg.classList.remove('shake'); void svg.getBoundingClientRect(); svg.classList.add('shake');
+    note={msg:'🔒 Still locked. '+a.msg,cls:'bad'};
+  }
+  render(); updateStats();
+}
+
+function startTimer(){
+  if(t0||demo||isOpen) return;
+  t0=performance.now();
+  tiv=setInterval(()=>{$('time').textContent=((performance.now()-t0)/1000).toFixed(1)+'s';},100);
+}
+function updateStats(){
+  $('wins').textContent=wins;
+  $('best').textContent=best?best.toFixed(1)+'s':'—';
+}
+function reset(newCombo){
+  isOpen=false; svg.classList.remove('open'); segs=[]; note=null;
+  clearInterval(tiv); t0=null; $('time').textContent='0.0s';
+  if(newCombo) combo=randomCombo();
+  render();
+}
+const canTurn=()=>!busy&&!isOpen;
+
+// ---- Dragging: grab anywhere on the dial and move in a circle ----
+let lastA=null;
+function local(e){
+  const p=svg.createSVGPoint(); p.x=e.clientX; p.y=e.clientY;
+  const q=p.matrixTransform(svg.getScreenCTM().inverse());
+  return {dx:q.x-CX, dy:q.y-CY};
+}
+svg.addEventListener('pointerdown',e=>{
+  if(!canTurn()) return;
+  const {dx,dy}=local(e), dist=Math.hypot(dx,dy);
+  if(dist>140) return;
+  e.preventDefault();
+  dragging=true; rot=irot; svg.classList.add('dragging');
+  lastA=dist>20?Math.atan2(dy,dx)*180/Math.PI:null;
+  try{svg.setPointerCapture(e.pointerId);}catch(_){}
+});
+svg.addEventListener('pointermove',e=>{
+  if(!dragging) return;
+  const {dx,dy}=local(e);
+  if(Math.hypot(dx,dy)<20){lastA=null;return;} // too close to center to tell direction
+  const a=Math.atan2(dy,dx)*180/Math.PI;
+  if(lastA!==null){
+    let d=a-lastA; if(d>180)d-=360; if(d<-180)d+=360;
+    rot+=d/9;
+    while(rot-irot>0.55&&!isOpen) step(1);
+    while(irot-rot>0.55&&!isOpen) step(-1);
+    setDial(rot);
+  }
+  lastA=a;
+});
+function endDrag(){
+  if(!dragging) return;
+  dragging=false; rot=irot; svg.classList.remove('dragging'); setDial(irot);
+}
+['pointerup','pointercancel','lostpointercapture'].forEach(t=>svg.addEventListener(t,endDrag));
+
+// ---- Mouse wheel / trackpad: down = right, up = left ----
+let wacc=0;
+svg.addEventListener('wheel',e=>{
+  if(!canTurn()) return;
+  e.preventDefault();
+  wacc+=e.deltaMode===1?e.deltaY*33:e.deltaY;
+  while(wacc>=35){wacc-=35;step(1);}
+  while(wacc<=-35){wacc+=35;step(-1);}
+},{passive:false});
+
+// ---- Buttons: tap for 1 click, hold to go faster ----
+function holdBtn(btn,dir){
+  let to; const stop=()=>clearTimeout(to);
+  btn.addEventListener('pointerdown',e=>{
+    if(!canTurn()) return;
+    e.preventDefault(); stop(); step(dir);
+    let n=0;
+    to=setTimeout(function rep(){
+      if(!canTurn()) return;
+      step(dir); n++;
+      to=setTimeout(rep, n<8?110:n<20?60:30);
+    },400);
+  });
+  ['pointerup','pointerleave','pointercancel'].forEach(t=>btn.addEventListener(t,stop));
+  btn.addEventListener('contextmenu',e=>e.preventDefault());
+}
+holdBtn($('left'),-1); holdBtn($('right'),1);
+
+function setDisabled(on,withDemo){
+  ['left','right','fullLeft','fullRight','open','new','reset','use'].forEach(id=>$(id).disabled=on);
+  if(withDemo) $('demo').disabled=on;
+}
+async function fullTurn(dir){
+  if(!canTurn()) return;
+  busy=true; setDisabled(true,true);
+  for(let i=0;i<N;i++){ step(dir); await sleep(14); }
+  busy=false; setDisabled(false,true); render();
+}
+$('fullLeft').onclick=()=>fullTurn(-1);
+$('fullRight').onclick=()=>fullTurn(1);
+
+// ---- Keyboard: arrows turn, Shift+arrow = 5 at a time, Enter = pull ----
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||busy) return;
+  const n=e.shiftKey?5:1;
+  if(e.key==='ArrowRight'&&!isOpen){e.preventDefault();for(let i=0;i<n;i++)step(1);}
+  if(e.key==='ArrowLeft'&&!isOpen){e.preventDefault();for(let i=0;i<n;i++)step(-1);}
+  if(e.key==='Enter'){e.preventDefault();tryOpen(false);}
+});
+
+$('open').onclick=()=>{ if(!busy) tryOpen(false); };
+$('new').onclick=()=>reset(true);
+$('reset').onclick=()=>reset(false);
+$('hints').onchange=e=>{hints=e.target.checked; render();};
+$('sound').onchange=e=>{soundOn=e.target.checked;};
+$('use').onclick=()=>{
+  const v=[0,1,2].map(i=>$('in'+i).value.trim());
+  if(v.some(x=>!/^\d+$/.test(x)||+x>39)){note={msg:'Please enter three whole numbers from 0 to 39.',cls:'bad'};render();return;}
+  combo=v.map(Number); reset(false);
+  note={msg:'Using your combination. Turn RIGHT ↻ to begin!',cls:'good'}; render();
+};
+
+// ---- Demo animation ----
+async function spin(dir,count,marks){
+  for(let i=0;i<count;i++){
+    if(!demo) return;
+    step(dir);
+    const slow=count-i-1<8||marks.some(m=>Math.abs(i+1-m)<5);
+    await sleep(slow?140:22);
+  }
+}
+$('demo').onclick=async()=>{
+  if(demo){demo=false;return;}
+  if(busy) return;
+  demo=true; busy=true; reset(false); setDisabled(true,false); $('demo').textContent='⏹ Stop demo';
+  const f2=mod(combo[1]-combo[0])||N, f3=mod(combo[1]-combo[2])||N;
+  await spin(1,3*N+mod(pos()-combo[0]),[]); if(demo) await sleep(1200);
+  await spin(-1,N+f2,[f2]);                 if(demo) await sleep(1200);
+  await spin(1,f3,[]);                      if(demo) await sleep(800);
+  const finished=demo; demo=false; busy=false;
+  setDisabled(false,false); $('demo').textContent='▶ Watch demo';
+  if(finished) tryOpen(true); else render();
+};
+
+combo=randomCombo(); render(); updateStats();
+</script>
+</body>
+</html>
